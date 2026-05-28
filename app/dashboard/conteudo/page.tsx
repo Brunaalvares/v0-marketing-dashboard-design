@@ -8,6 +8,7 @@ import { DashboardHeader } from '@/components/dashboard/header'
 import { DateFilter, CompareMode, getComparisonDates } from '@/components/dashboard/date-filter'
 import { KPICard } from '@/components/dashboard/kpi-card'
 import { ContentFormDialog } from '@/components/dashboard/content-form-dialog'
+import { ComparisonChart } from '@/components/dashboard/comparison-chart'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,30 +22,13 @@ import {
 } from '@/components/ui/table'
 import { ContentMetric } from '@/lib/types'
 import { Pencil, Trash2 } from 'lucide-react'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-} from 'recharts'
-
-const COLORS = {
-  primary: '#3b5998',
-  secondary: '#2d9cdb',
-  success: '#27ae60',
-  warning: '#f2994a',
-}
+import { calculateTrend, sum } from '@/lib/dashboard-metrics'
 
 export default function ConteudoPage() {
   const [selectedMonth, setSelectedMonth] = useState(startOfMonth(new Date()))
   const [compareMode, setCompareMode] = useState<CompareMode>('month')
   const [metrics, setMetrics] = useState<ContentMetric[]>([])
+  const [compareMetrics, setCompareMetrics] = useState<ContentMetric[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingMetric, setEditingMetric] = useState<ContentMetric | null>(null)
@@ -52,17 +36,27 @@ export default function ConteudoPage() {
 
   const fetchMetrics = useCallback(async () => {
     const supabase = createClient()
-    const { currentStart, currentEnd } = getComparisonDates(selectedMonth, compareMode)
+    const { currentStart, currentEnd, compareStart, compareEnd } = getComparisonDates(
+      selectedMonth,
+      compareMode
+    )
 
     setIsLoading(true)
 
-    const { data } = await supabase
+    const { data: currentData } = await supabase
       .from('content_metrics')
       .select('*')
       .gte('reference_date', currentStart.toISOString().split('T')[0])
       .lte('reference_date', currentEnd.toISOString().split('T')[0])
 
-    setMetrics(data || [])
+    const { data: previousData } = await supabase
+      .from('content_metrics')
+      .select('*')
+      .gte('reference_date', compareStart.toISOString().split('T')[0])
+      .lte('reference_date', compareEnd.toISOString().split('T')[0])
+
+    setMetrics(currentData || [])
+    setCompareMetrics(previousData || [])
     setIsLoading(false)
   }, [selectedMonth, compareMode])
 
@@ -103,41 +97,131 @@ export default function ConteudoPage() {
   const seoMetrics = metrics.filter(m => m.channel === 'seo')
   const instagramMetrics = metrics.filter(m => m.channel === 'instagram')
   const linkedinMetrics = metrics.filter(m => m.channel === 'linkedin')
+  const compareEmailMetrics = compareMetrics.filter(m => m.channel === 'email_marketing')
+  const compareSeoMetrics = compareMetrics.filter(m => m.channel === 'seo')
+  const compareInstagramMetrics = compareMetrics.filter(m => m.channel === 'instagram')
+  const compareLinkedinMetrics = compareMetrics.filter(m => m.channel === 'linkedin')
 
   // Calculate averages for email marketing
   const avgTaxaEntrega = emailMetrics.length > 0
-    ? emailMetrics.reduce((acc, m) => acc + Number(m.taxa_entrega), 0) / emailMetrics.length
+    ? sum(emailMetrics.map(m => Number(m.taxa_entrega))) / emailMetrics.length
     : 0
   const avgTaxaAbertura = emailMetrics.length > 0
-    ? emailMetrics.reduce((acc, m) => acc + Number(m.taxa_abertura), 0) / emailMetrics.length
+    ? sum(emailMetrics.map(m => Number(m.taxa_abertura))) / emailMetrics.length
     : 0
   const avgTaxaClique = emailMetrics.length > 0
-    ? emailMetrics.reduce((acc, m) => acc + Number(m.taxa_clique), 0) / emailMetrics.length
+    ? sum(emailMetrics.map(m => Number(m.taxa_clique))) / emailMetrics.length
     : 0
 
   // SEO totals
-  const totalTrafegoOrganico = seoMetrics.reduce((acc, m) => acc + m.trafego_organico, 0)
-  const totalSessoes = seoMetrics.reduce((acc, m) => acc + m.sessoes, 0)
-  const totalPalavrasIndexadas = seoMetrics.reduce((acc, m) => acc + m.palavras_indexadas, 0)
+  const totalTrafegoOrganico = sum(seoMetrics.map(m => m.trafego_organico))
+  const totalSessoes = sum(seoMetrics.map(m => m.sessoes))
+  const totalPalavrasIndexadas = sum(seoMetrics.map(m => m.palavras_indexadas))
 
   // Social totals
-  const totalInstagramLeads = instagramMetrics.reduce((acc, m) => acc + m.conversao_lead, 0)
-  const totalLinkedinLeads = linkedinMetrics.reduce((acc, m) => acc + m.conversao_lead, 0)
+  const totalInstagramLeads = sum(instagramMetrics.map(m => m.conversao_lead))
+  const totalLinkedinLeads = sum(linkedinMetrics.map(m => m.conversao_lead))
 
-  // Mock chart data
-  const emailChartData = [
-    { month: 'Jan', entrega: 95, abertura: 22, clique: 3.5 },
-    { month: 'Fev', entrega: 96, abertura: 24, clique: 3.8 },
-    { month: 'Mar', entrega: 94, abertura: 23, clique: 4.0 },
-    { month: 'Abr', entrega: 97, abertura: 25, clique: 4.2 },
-  ]
+  const compareAvgTaxaEntrega = compareEmailMetrics.length > 0
+    ? sum(compareEmailMetrics.map(m => Number(m.taxa_entrega))) / compareEmailMetrics.length
+    : 0
+  const compareAvgTaxaAbertura = compareEmailMetrics.length > 0
+    ? sum(compareEmailMetrics.map(m => Number(m.taxa_abertura))) / compareEmailMetrics.length
+    : 0
+  const compareAvgTaxaClique = compareEmailMetrics.length > 0
+    ? sum(compareEmailMetrics.map(m => Number(m.taxa_clique))) / compareEmailMetrics.length
+    : 0
+  const compareAvgTaxaConversao = compareEmailMetrics.length > 0
+    ? sum(compareEmailMetrics.map(m => Number(m.taxa_conversao))) / compareEmailMetrics.length
+    : 0
 
-  const seoChartData = [
-    { month: 'Jan', trafego: 12000, sessoes: 15000, usuarios: 8000 },
-    { month: 'Fev', trafego: 13500, sessoes: 16500, usuarios: 9000 },
-    { month: 'Mar', trafego: 14200, sessoes: 17200, usuarios: 9500 },
-    { month: 'Abr', trafego: 15000, sessoes: 18000, usuarios: 10000 },
-  ]
+  const compareTrafegoOrganico = sum(compareSeoMetrics.map(m => m.trafego_organico))
+  const compareSessoes = sum(compareSeoMetrics.map(m => m.sessoes))
+  const compareUsuarios = sum(compareSeoMetrics.map(m => m.usuarios))
+  const comparePalavrasIndexadas = sum(compareSeoMetrics.map(m => m.palavras_indexadas))
+  const compareDesempenhoSite = compareSeoMetrics.length > 0
+    ? sum(compareSeoMetrics.map(m => Number(m.desempenho_site))) / compareSeoMetrics.length
+    : 0
+
+  const compareInstagramLeads = sum(compareInstagramMetrics.map(m => m.conversao_lead))
+  const compareLinkedinLeads = sum(compareLinkedinMetrics.map(m => m.conversao_lead))
+
+  const getCurrentChannelMetrics = () => {
+    switch (activeChannel) {
+      case 'email_marketing': return emailMetrics
+      case 'seo': return seoMetrics
+      case 'instagram': return instagramMetrics
+      case 'linkedin': return linkedinMetrics
+      default: return []
+    }
+  }
+
+  const getComparisonChartData = () => {
+    switch (activeChannel) {
+      case 'email_marketing':
+        return [
+          { label: 'Entrega %', atual: avgTaxaEntrega, comparativo: compareAvgTaxaEntrega },
+          { label: 'Abertura %', atual: avgTaxaAbertura, comparativo: compareAvgTaxaAbertura },
+          { label: 'Clique %', atual: avgTaxaClique, comparativo: compareAvgTaxaClique },
+          {
+            label: 'Conversao %',
+            atual: emailMetrics.length > 0
+              ? sum(emailMetrics.map((metric) => Number(metric.taxa_conversao))) / emailMetrics.length
+              : 0,
+            comparativo: compareAvgTaxaConversao,
+          },
+        ]
+      case 'seo':
+        return [
+          { label: 'Trafego', atual: totalTrafegoOrganico, comparativo: compareTrafegoOrganico },
+          { label: 'Sessoes', atual: totalSessoes, comparativo: compareSessoes },
+          {
+            label: 'Usuarios',
+            atual: sum(seoMetrics.map((metric) => metric.usuarios)),
+            comparativo: compareUsuarios,
+          },
+          { label: 'Palavras', atual: totalPalavrasIndexadas, comparativo: comparePalavrasIndexadas },
+        ]
+      case 'instagram':
+        return [
+          {
+            label: 'Trafego/Sessoes',
+            atual: sum(instagramMetrics.map((metric) => metric.trafego_organico)),
+            comparativo: sum(compareInstagramMetrics.map((metric) => metric.trafego_organico)),
+          },
+          { label: 'Leads', atual: totalInstagramLeads, comparativo: compareInstagramLeads },
+          {
+            label: 'Conversao %',
+            atual: instagramMetrics.length > 0
+              ? sum(instagramMetrics.map((metric) => Number(metric.taxa_conversao))) / instagramMetrics.length
+              : 0,
+            comparativo: compareInstagramMetrics.length > 0
+              ? sum(compareInstagramMetrics.map((metric) => Number(metric.taxa_conversao))) / compareInstagramMetrics.length
+              : 0,
+          },
+        ]
+      case 'linkedin':
+        return [
+          {
+            label: 'Trafego/Sessoes',
+            atual: sum(linkedinMetrics.map((metric) => metric.trafego_organico)),
+            comparativo: sum(compareLinkedinMetrics.map((metric) => metric.trafego_organico)),
+          },
+          { label: 'Leads', atual: totalLinkedinLeads, comparativo: compareLinkedinLeads },
+          {
+            label: 'Conversao %',
+            atual: linkedinMetrics.length > 0
+              ? sum(linkedinMetrics.map((metric) => Number(metric.taxa_conversao))) / linkedinMetrics.length
+              : 0,
+            comparativo: compareLinkedinMetrics.length > 0
+              ? sum(compareLinkedinMetrics.map((metric) => Number(metric.taxa_conversao))) / compareLinkedinMetrics.length
+              : 0,
+          },
+        ]
+      default:
+        return []
+    }
+  }
 
   const renderChannelContent = () => {
     switch (activeChannel) {
@@ -154,45 +238,54 @@ export default function ConteudoPage() {
               <KPICard
                 title="Taxa Hard Bounce"
                 value={emailMetrics.length > 0 
-                  ? emailMetrics.reduce((acc, m) => acc + Number(m.taxa_hard_bounce), 0) / emailMetrics.length 
+                  ? sum(emailMetrics.map((metric) => Number(metric.taxa_hard_bounce))) / emailMetrics.length 
                   : 0}
+                previousValue={compareEmailMetrics.length > 0
+                  ? sum(compareEmailMetrics.map((metric) => Number(metric.taxa_hard_bounce))) / compareEmailMetrics.length
+                  : 0}
+                trend={calculateTrend(
+                  emailMetrics.length > 0 ? sum(emailMetrics.map((metric) => Number(metric.taxa_hard_bounce))) / emailMetrics.length : 0,
+                  compareEmailMetrics.length > 0 ? sum(compareEmailMetrics.map((metric) => Number(metric.taxa_hard_bounce))) / compareEmailMetrics.length : 0
+                )}
                 format="percent"
               />
               <KPICard
                 title="Taxa de Abertura"
                 value={avgTaxaAbertura}
+                previousValue={compareAvgTaxaAbertura}
+                trend={calculateTrend(avgTaxaAbertura, compareAvgTaxaAbertura)}
                 format="percent"
               />
               <KPICard
                 title="Taxa de Clique"
                 value={avgTaxaClique}
+                previousValue={compareAvgTaxaClique}
+                trend={calculateTrend(avgTaxaClique, compareAvgTaxaClique)}
                 format="percent"
               />
               <KPICard
                 title="Taxa de Conversao"
                 value={emailMetrics.length > 0 
-                  ? emailMetrics.reduce((acc, m) => acc + Number(m.taxa_conversao), 0) / emailMetrics.length 
+                  ? sum(emailMetrics.map((metric) => Number(metric.taxa_conversao))) / emailMetrics.length 
                   : 0}
+                previousValue={compareAvgTaxaConversao}
+                trend={calculateTrend(
+                  emailMetrics.length > 0 ? sum(emailMetrics.map((metric) => Number(metric.taxa_conversao))) / emailMetrics.length : 0,
+                  compareAvgTaxaConversao
+                )}
                 format="percent"
               />
             </div>
             <Card className="mb-8">
               <CardHeader>
-                <CardTitle className="text-base font-medium">Evolucao Email Marketing</CardTitle>
+                <CardTitle className="text-base font-medium">Comparativo Email Marketing</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={emailChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="entrega" name="Entrega %" stroke={COLORS.primary} strokeWidth={2} />
-                    <Line type="monotone" dataKey="abertura" name="Abertura %" stroke={COLORS.secondary} strokeWidth={2} />
-                    <Line type="monotone" dataKey="clique" name="Clique %" stroke={COLORS.success} strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
+                <ComparisonChart
+                  title="Indicadores de E-mail"
+                  data={getComparisonChartData()}
+                  formatter="percent"
+                />
               </CardContent>
             </Card>
           </>
@@ -210,43 +303,46 @@ export default function ConteudoPage() {
               <KPICard
                 title="Sessoes"
                 value={totalSessoes}
+                previousValue={compareSessoes}
+                trend={calculateTrend(totalSessoes, compareSessoes)}
                 format="number"
               />
               <KPICard
                 title="Usuarios"
                 value={seoMetrics.reduce((acc, m) => acc + m.usuarios, 0)}
+                previousValue={compareUsuarios}
+                trend={calculateTrend(sum(seoMetrics.map((metric) => metric.usuarios)), compareUsuarios)}
                 format="number"
               />
               <KPICard
                 title="Palavras Indexadas"
                 value={totalPalavrasIndexadas}
+                previousValue={comparePalavrasIndexadas}
+                trend={calculateTrend(totalPalavrasIndexadas, comparePalavrasIndexadas)}
                 format="number"
               />
               <KPICard
                 title="Desempenho Site"
                 value={seoMetrics.length > 0 
-                  ? seoMetrics.reduce((acc, m) => acc + Number(m.desempenho_site), 0) / seoMetrics.length 
+                  ? sum(seoMetrics.map((metric) => Number(metric.desempenho_site))) / seoMetrics.length 
                   : 0}
+                previousValue={compareDesempenhoSite}
+                trend={calculateTrend(
+                  seoMetrics.length > 0 ? sum(seoMetrics.map((metric) => Number(metric.desempenho_site))) / seoMetrics.length : 0,
+                  compareDesempenhoSite
+                )}
                 format="percent"
               />
             </div>
             <Card className="mb-8">
               <CardHeader>
-                <CardTitle className="text-base font-medium">Evolucao SEO</CardTitle>
+                <CardTitle className="text-base font-medium">Comparativo SEO</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={seoChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="trafego" name="Trafego" fill={COLORS.primary} radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="sessoes" name="Sessoes" fill={COLORS.secondary} radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="usuarios" name="Usuarios" fill={COLORS.success} radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <ComparisonChart
+                  title="Indicadores de SEO"
+                  data={getComparisonChartData()}
+                />
               </CardContent>
             </Card>
           </>
@@ -263,15 +359,27 @@ export default function ConteudoPage() {
             <KPICard
               title="Conversao de Lead"
               value={totalInstagramLeads}
+              previousValue={compareInstagramLeads}
+              trend={calculateTrend(totalInstagramLeads, compareInstagramLeads)}
               format="number"
             />
             <KPICard
               title="Taxa de Conversao"
               value={instagramMetrics.length > 0 
-                ? instagramMetrics.reduce((acc, m) => acc + Number(m.taxa_conversao), 0) / instagramMetrics.length 
+                ? sum(instagramMetrics.map((metric) => Number(metric.taxa_conversao))) / instagramMetrics.length 
                 : 0}
+              previousValue={compareInstagramMetrics.length > 0
+                ? sum(compareInstagramMetrics.map((metric) => Number(metric.taxa_conversao))) / compareInstagramMetrics.length
+                : 0}
+              trend={calculateTrend(
+                instagramMetrics.length > 0 ? sum(instagramMetrics.map((metric) => Number(metric.taxa_conversao))) / instagramMetrics.length : 0,
+                compareInstagramMetrics.length > 0 ? sum(compareInstagramMetrics.map((metric) => Number(metric.taxa_conversao))) / compareInstagramMetrics.length : 0
+              )}
               format="percent"
             />
+            <div className="lg:col-span-3">
+              <ComparisonChart title="Comparativo Instagram" data={getComparisonChartData()} />
+            </div>
           </div>
         )
       case 'linkedin':
@@ -286,29 +394,31 @@ export default function ConteudoPage() {
             <KPICard
               title="Conversao de Lead"
               value={totalLinkedinLeads}
+              previousValue={compareLinkedinLeads}
+              trend={calculateTrend(totalLinkedinLeads, compareLinkedinLeads)}
               format="number"
             />
             <KPICard
               title="Taxa de Conversao"
               value={linkedinMetrics.length > 0 
-                ? linkedinMetrics.reduce((acc, m) => acc + Number(m.taxa_conversao), 0) / linkedinMetrics.length 
+                ? sum(linkedinMetrics.map((metric) => Number(metric.taxa_conversao))) / linkedinMetrics.length 
                 : 0}
+              previousValue={compareLinkedinMetrics.length > 0
+                ? sum(compareLinkedinMetrics.map((metric) => Number(metric.taxa_conversao))) / compareLinkedinMetrics.length
+                : 0}
+              trend={calculateTrend(
+                linkedinMetrics.length > 0 ? sum(linkedinMetrics.map((metric) => Number(metric.taxa_conversao))) / linkedinMetrics.length : 0,
+                compareLinkedinMetrics.length > 0 ? sum(compareLinkedinMetrics.map((metric) => Number(metric.taxa_conversao))) / compareLinkedinMetrics.length : 0
+              )}
               format="percent"
             />
+            <div className="lg:col-span-3">
+              <ComparisonChart title="Comparativo LinkedIn" data={getComparisonChartData()} />
+            </div>
           </div>
         )
       default:
         return null
-    }
-  }
-
-  const getChannelMetrics = () => {
-    switch (activeChannel) {
-      case 'email_marketing': return emailMetrics
-      case 'seo': return seoMetrics
-      case 'instagram': return instagramMetrics
-      case 'linkedin': return linkedinMetrics
-      default: return []
     }
   }
 
@@ -387,7 +497,7 @@ export default function ConteudoPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {getChannelMetrics().map((metric) => (
+                        {getCurrentChannelMetrics().map((metric) => (
                           <TableRow key={metric.id}>
                             <TableCell>{metric.reference_date}</TableCell>
                             {activeChannel === 'email_marketing' && (
@@ -435,7 +545,7 @@ export default function ConteudoPage() {
                             </TableCell>
                           </TableRow>
                         ))}
-                        {getChannelMetrics().length === 0 && (
+                        {getCurrentChannelMetrics().length === 0 && (
                           <TableRow>
                             <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                               Nenhum dado encontrado para este periodo.

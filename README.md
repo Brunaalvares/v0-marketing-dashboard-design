@@ -31,3 +31,27 @@ To learn more, take a look at the following resources:
 - [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 - [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
+
+## Supabase - Next Step
+
+To enable the newly created pages (`CRM`, `ADS` and `Projetos`), run the SQL script:
+
+- `SUPABASE_NEXT_STEP.sql`
+
+How to run:
+
+1. Open Supabase project dashboard.
+2. Go to SQL Editor.
+3. Paste the script content from `SUPABASE_NEXT_STEP.sql`.
+4. Execute it.
+
+### Optional - Seed data
+
+To populate the dashboard with sample data for testing, run:
+
+- `SUPABASE_SEED_SAMPLE_DATA.sql`
+
+Before running:
+
+1. Open the file and set `v_target_email` with an existing user email.
+2. Run the script in Supabase SQL Editor.

@@ -9,11 +9,12 @@ import { DateFilter, CompareMode, getComparisonDates } from '@/components/dashbo
 import { KPICard } from '@/components/dashboard/kpi-card'
 import { MarketingTable } from '@/components/dashboard/marketing-table'
 import { MetricFormDialog } from '@/components/dashboard/metric-form-dialog'
-import { FunnelChart, TrendChart, CostMetricsChart, SourceDistributionChart } from '@/components/dashboard/charts'
+import { ComparisonChart } from '@/components/dashboard/comparison-chart'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { MarketingMetric } from '@/lib/types'
+import { MARKETING_SOURCES, MarketingMetric } from '@/lib/types'
 import Link from 'next/link'
+import { calculateTrend, sum } from '@/lib/dashboard-metrics'
 
 export default function DashboardPage() {
   const [selectedMonth, setSelectedMonth] = useState(startOfMonth(new Date()))
@@ -94,54 +95,73 @@ export default function DashboardPage() {
     setDialogOpen(true)
   }
 
-  // Calculate KPIs
-  const totalInvestimento = metrics.reduce((acc, m) => acc + Number(m.investimento), 0)
-  const totalMqls = metrics.reduce((acc, m) => acc + m.mqls, 0)
-  const totalDemoAgendadas = metrics.reduce((acc, m) => acc + m.demo_agendadas, 0)
-  const totalDemoRealizadas = metrics.reduce((acc, m) => acc + m.demo_realizadas, 0)
-  const totalOnboarding = metrics.reduce((acc, m) => acc + m.onboarding, 0)
+  const totalInvestimento = sum(metrics.map((metric) => Number(metric.investimento)))
+  const totalMqls = sum(metrics.map((metric) => metric.mqls))
+  const totalDemoAgendadas = sum(metrics.map((metric) => metric.demo_agendadas))
+  const totalDemoRealizadas = sum(metrics.map((metric) => metric.demo_realizadas))
+  const totalOnboarding = sum(metrics.map((metric) => metric.onboarding))
   const avgCicloVenda = metrics.length > 0 
-    ? metrics.reduce((acc, m) => acc + m.ciclo_venda, 0) / metrics.length 
+    ? sum(metrics.map((metric) => metric.ciclo_venda)) / metrics.length 
     : 0
 
-  // Compare period KPIs
-  const prevInvestimento = compareMetrics.reduce((acc, m) => acc + Number(m.investimento), 0)
-  const prevMqls = compareMetrics.reduce((acc, m) => acc + m.mqls, 0)
-  const prevOnboarding = compareMetrics.reduce((acc, m) => acc + m.onboarding, 0)
+  const prevInvestimento = sum(compareMetrics.map((metric) => Number(metric.investimento)))
+  const prevMqls = sum(compareMetrics.map((metric) => metric.mqls))
+  const prevDemoAgendadas = sum(compareMetrics.map((metric) => metric.demo_agendadas))
+  const prevDemoRealizadas = sum(compareMetrics.map((metric) => metric.demo_realizadas))
+  const prevOnboarding = sum(compareMetrics.map((metric) => metric.onboarding))
 
-  // Calculate trends
-  const investimentoTrend = prevInvestimento === 0 ? 'neutral' : totalInvestimento > prevInvestimento ? 'up' : 'down'
-  const mqlsTrend = prevMqls === 0 ? 'neutral' : totalMqls > prevMqls ? 'up' : 'down'
-  const onboardingTrend = prevOnboarding === 0 ? 'neutral' : totalOnboarding > prevOnboarding ? 'up' : 'down'
+  const investimentoTrend = calculateTrend(totalInvestimento, prevInvestimento)
+  const mqlsTrend = calculateTrend(totalMqls, prevMqls)
+  const onboardingTrend = calculateTrend(totalOnboarding, prevOnboarding)
 
-  // Chart data
-  const funnelData = {
-    mqls: totalMqls,
-    demoAgendadas: totalDemoAgendadas,
-    demoRealizadas: totalDemoRealizadas,
-    onboarding: totalOnboarding,
-  }
-
-  const sourceDistribution = ['Inbound', 'Busca Paga', 'Busca Organica', 'Email Marketing', 'Redes Sociais', 'Trafego Direto']
-    .map(source => ({
-      source,
-      value: metrics.filter(m => m.source === source).reduce((acc, m) => acc + m.mqls, 0),
-    }))
-    .filter(d => d.value > 0)
-
-  // Mock trend data - in real app, fetch last 6 months
-  const trendData = [
-    { month: 'Jan', mqls: 320, demoAgendadas: 45, demoRealizadas: 15, onboarding: 58 },
-    { month: 'Fev', mqls: 350, demoAgendadas: 48, demoRealizadas: 16, onboarding: 62 },
-    { month: 'Mar', mqls: 380, demoAgendadas: 52, demoRealizadas: 17, onboarding: 68 },
-    { month: 'Abr', mqls: 403, demoAgendadas: 56, demoRealizadas: 18, onboarding: 72 },
+  const funnelChartData = [
+    { label: 'MQLs', atual: totalMqls, comparativo: prevMqls },
+    { label: 'DEMO Agendadas', atual: totalDemoAgendadas, comparativo: prevDemoAgendadas },
+    { label: 'DEMO Realizadas', atual: totalDemoRealizadas, comparativo: prevDemoRealizadas },
+    { label: 'Onboarding', atual: totalOnboarding, comparativo: prevOnboarding },
   ]
 
-  const costData = [
-    { month: 'Jan', cpl: 180, cpo: 4000, cpa: 1000 },
-    { month: 'Fev', cpl: 175, cpo: 3900, cpa: 980 },
-    { month: 'Mar', cpl: 170, cpo: 3850, cpa: 960 },
-    { month: 'Abr', cpl: 173.70, cpo: 3888.89, cpa: 972.22 },
+  const sourceChartData = MARKETING_SOURCES.map((source) => {
+    const currentSourceMetrics = metrics.filter((metric) => metric.source === source)
+    const compareSourceMetrics = compareMetrics.filter((metric) => metric.source === source)
+
+    return {
+      label: source,
+      atual: sum(currentSourceMetrics.map((metric) => metric.mqls)),
+      comparativo: sum(compareSourceMetrics.map((metric) => metric.mqls)),
+    }
+  })
+
+  const currentCpl = totalMqls > 0 ? totalInvestimento / totalMqls : 0
+  const currentCpo = totalDemoRealizadas > 0 ? totalInvestimento / totalDemoRealizadas : 0
+  const currentCpa = totalOnboarding > 0 ? totalInvestimento / totalOnboarding : 0
+
+  const previousCpl = prevMqls > 0 ? prevInvestimento / prevMqls : 0
+  const previousCpo = prevDemoRealizadas > 0 ? prevInvestimento / prevDemoRealizadas : 0
+  const previousCpa = prevOnboarding > 0 ? prevInvestimento / prevOnboarding : 0
+
+  const costChartData = [
+    { label: 'CPL', atual: currentCpl, comparativo: previousCpl },
+    { label: 'CPO', atual: currentCpo, comparativo: previousCpo },
+    { label: 'CPA', atual: currentCpa, comparativo: previousCpa },
+  ]
+
+  const conversionChartData = [
+    {
+      label: 'MQL > DEMO Agendada',
+      atual: totalMqls > 0 ? (totalDemoAgendadas / totalMqls) * 100 : 0,
+      comparativo: prevMqls > 0 ? (prevDemoAgendadas / prevMqls) * 100 : 0,
+    },
+    {
+      label: 'DEMO Agendada > Realizada',
+      atual: totalDemoAgendadas > 0 ? (totalDemoRealizadas / totalDemoAgendadas) * 100 : 0,
+      comparativo: prevDemoAgendadas > 0 ? (prevDemoRealizadas / prevDemoAgendadas) * 100 : 0,
+    },
+    {
+      label: 'DEMO Realizada > Onboarding',
+      atual: totalDemoRealizadas > 0 ? (totalOnboarding / totalDemoRealizadas) * 100 : 0,
+      comparativo: prevDemoRealizadas > 0 ? (prevOnboarding / prevDemoRealizadas) * 100 : 0,
+    },
   ]
 
   return (
@@ -218,13 +238,13 @@ export default function DashboardPage() {
 
             {/* Charts Row */}
             <div className="grid gap-6 md:grid-cols-2 mb-8">
-              <FunnelChart data={funnelData} />
-              <SourceDistributionChart data={sourceDistribution} />
+              <ComparisonChart title="Funil de Conversao" data={funnelChartData} />
+              <ComparisonChart title="MQLs por Fonte" data={sourceChartData} />
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 mb-8">
-              <TrendChart data={trendData} />
-              <CostMetricsChart data={costData} />
+              <ComparisonChart title="Comparativo de Custo" data={costChartData} formatter="currency" />
+              <ComparisonChart title="Taxas de Conversao do Funil" data={conversionChartData} formatter="percent" />
             </div>
 
             {/* Marketing Table */}
