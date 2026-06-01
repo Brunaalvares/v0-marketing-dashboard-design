@@ -6,6 +6,16 @@ export async function updateSession(request: NextRequest) {
     request,
   })
 
+  // Normalize dashboard route casing to prevent 404s in case-sensitive environments
+  if (
+    request.nextUrl.pathname.startsWith('/dashboard/') &&
+    request.nextUrl.pathname !== request.nextUrl.pathname.toLowerCase()
+  ) {
+    const normalizedUrl = request.nextUrl.clone()
+    normalizedUrl.pathname = request.nextUrl.pathname.toLowerCase()
+    return NextResponse.redirect(normalizedUrl)
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
