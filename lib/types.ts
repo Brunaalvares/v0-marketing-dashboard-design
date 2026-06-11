@@ -98,7 +98,7 @@ export interface ProjectMetric {
   updated_at: string
 }
 
-export type DashboardMetricTab = 'overview' | 'content' | 'crm' | 'ads'
+export type DashboardMetricTab = 'overview' | 'content' | 'crm' | 'ads' | 'google_analytics'
 
 export interface DashboardCustomMetric {
   id: string

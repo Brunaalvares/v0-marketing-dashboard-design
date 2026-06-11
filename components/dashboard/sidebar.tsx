@@ -8,6 +8,7 @@ import {
   FileText,
   Users,
   Megaphone,
+  BarChart3,
   FolderKanban,
   LogOut,
   ChevronLeft,
@@ -22,6 +23,7 @@ const navigation = [
   { name: 'Conteudo', href: '/dashboard/conteudo', icon: FileText },
   { name: 'CRM', href: '/dashboard/crm', icon: Users },
   { name: 'ADS', href: '/dashboard/ads', icon: Megaphone },
+  { name: 'Google Analytics', href: '/dashboard/google-analytics', icon: BarChart3 },
   { name: 'Projetos', href: '/dashboard/projetos', icon: FolderKanban },
 ]
 

@@ -200,6 +200,9 @@ export default function DashboardPage() {
             <TabsTrigger value="ads" asChild>
               <Link href="/dashboard/ads">ADS</Link>
             </TabsTrigger>
+            <TabsTrigger value="google-analytics" asChild>
+              <Link href="/dashboard/google-analytics">Google Analytics</Link>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">

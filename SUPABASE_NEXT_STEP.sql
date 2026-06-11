@@ -256,8 +256,15 @@ create table if not exists public.dashboard_custom_metrics (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint dashboard_custom_metrics_tab_key_check
-    check (tab_key in ('overview', 'content', 'crm', 'ads'))
+    check (tab_key in ('overview', 'content', 'crm', 'ads', 'google_analytics'))
 );
+
+alter table public.dashboard_custom_metrics
+drop constraint if exists dashboard_custom_metrics_tab_key_check;
+
+alter table public.dashboard_custom_metrics
+add constraint dashboard_custom_metrics_tab_key_check
+check (tab_key in ('overview', 'content', 'crm', 'ads', 'google_analytics'));
 
 create index if not exists dashboard_custom_metrics_user_id_idx
   on public.dashboard_custom_metrics (user_id);
