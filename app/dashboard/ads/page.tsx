@@ -9,6 +9,7 @@ import { DateFilter, CompareMode, getComparisonDates } from '@/components/dashbo
 import { KPICard } from '@/components/dashboard/kpi-card'
 import { ADSFormDialog } from '@/components/dashboard/ads-form-dialog'
 import { ComparisonChart } from '@/components/dashboard/comparison-chart'
+import { CustomMetricsSection } from '@/components/dashboard/custom-metrics-section'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -237,7 +238,7 @@ export default function ADSPage() {
           <ComparisonChart title="Investimento por plataforma" data={platformChartData} formatter="currency" />
         </div>
 
-        <Card>
+        <Card className="mb-8">
           <CardHeader>
             <CardTitle className="text-base font-medium">Dados do periodo</CardTitle>
           </CardHeader>
@@ -325,6 +326,14 @@ export default function ADSPage() {
             </Table>
           </CardContent>
         </Card>
+
+        <CustomMetricsSection
+          tabKey="ads"
+          selectedMonth={selectedMonth}
+          compareMode={compareMode}
+          title="Metricas customizadas de ADS"
+          description="Adicione indicadores extras para acompanhar nesta aba de campanhas pagas."
+        />
       </div>
 
       <ADSFormDialog

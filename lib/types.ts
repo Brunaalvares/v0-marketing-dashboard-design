@@ -98,6 +98,20 @@ export interface ProjectMetric {
   updated_at: string
 }
 
+export type DashboardMetricTab = 'overview' | 'content' | 'crm' | 'ads'
+
+export interface DashboardCustomMetric {
+  id: string
+  user_id: string
+  tab_key: DashboardMetricTab
+  section_key: string | null
+  reference_date: string
+  metric_name: string
+  metric_value: number
+  created_at: string
+  updated_at: string
+}
+
 export type DateFilter = {
   month: number
   year: number

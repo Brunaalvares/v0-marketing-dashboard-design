@@ -4,6 +4,7 @@
 -- - /dashboard/crm
 -- - /dashboard/ads
 -- - /dashboard/projetos
+-- - custom metrics in each dashboard tab
 --
 -- Safe to re-run due to IF NOT EXISTS and policy drops.
 
@@ -242,7 +243,60 @@ using (
 );
 
 -- ============================================================================
--- 5) updated_at helpers
+-- 5) DASHBOARD CUSTOM METRICS
+-- ============================================================================
+create table if not exists public.dashboard_custom_metrics (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  tab_key text not null,
+  section_key text null,
+  reference_date date not null,
+  metric_name text not null,
+  metric_value numeric(14,2) not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint dashboard_custom_metrics_tab_key_check
+    check (tab_key in ('overview', 'content', 'crm', 'ads'))
+);
+
+create index if not exists dashboard_custom_metrics_user_id_idx
+  on public.dashboard_custom_metrics (user_id);
+create index if not exists dashboard_custom_metrics_reference_date_idx
+  on public.dashboard_custom_metrics (reference_date);
+create index if not exists dashboard_custom_metrics_tab_section_idx
+  on public.dashboard_custom_metrics (tab_key, section_key);
+create unique index if not exists dashboard_custom_metrics_unique_record
+  on public.dashboard_custom_metrics (user_id, tab_key, coalesce(section_key, ''), reference_date, metric_name);
+
+alter table public.dashboard_custom_metrics enable row level security;
+
+drop policy if exists "dashboard_custom_metrics_select_own" on public.dashboard_custom_metrics;
+create policy "dashboard_custom_metrics_select_own"
+on public.dashboard_custom_metrics
+for select
+using (auth.uid() = user_id);
+
+drop policy if exists "dashboard_custom_metrics_insert_own" on public.dashboard_custom_metrics;
+create policy "dashboard_custom_metrics_insert_own"
+on public.dashboard_custom_metrics
+for insert
+with check (auth.uid() = user_id);
+
+drop policy if exists "dashboard_custom_metrics_update_own" on public.dashboard_custom_metrics;
+create policy "dashboard_custom_metrics_update_own"
+on public.dashboard_custom_metrics
+for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+drop policy if exists "dashboard_custom_metrics_delete_own" on public.dashboard_custom_metrics;
+create policy "dashboard_custom_metrics_delete_own"
+on public.dashboard_custom_metrics
+for delete
+using (auth.uid() = user_id);
+
+-- ============================================================================
+-- 6) updated_at helpers
 -- ============================================================================
 create or replace function public.set_updated_at()
 returns trigger
@@ -272,4 +326,9 @@ for each row execute function public.set_updated_at();
 drop trigger if exists project_metrics_set_updated_at on public.project_metrics;
 create trigger project_metrics_set_updated_at
 before update on public.project_metrics
+for each row execute function public.set_updated_at();
+
+drop trigger if exists dashboard_custom_metrics_set_updated_at on public.dashboard_custom_metrics;
+create trigger dashboard_custom_metrics_set_updated_at
+before update on public.dashboard_custom_metrics
 for each row execute function public.set_updated_at();

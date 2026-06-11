@@ -9,6 +9,7 @@ import { DateFilter, CompareMode, getComparisonDates } from '@/components/dashbo
 import { KPICard } from '@/components/dashboard/kpi-card'
 import { ContentFormDialog } from '@/components/dashboard/content-form-dialog'
 import { ComparisonChart } from '@/components/dashboard/comparison-chart'
+import { CustomMetricsSection } from '@/components/dashboard/custom-metrics-section'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -461,7 +462,7 @@ export default function ConteudoPage() {
                 {renderChannelContent()}
 
                 {/* Data Table */}
-                <Card>
+                <Card className="mb-8">
                   <CardHeader>
                     <CardTitle className="text-base font-medium">Dados do Periodo</CardTitle>
                   </CardHeader>
@@ -556,6 +557,15 @@ export default function ConteudoPage() {
                     </Table>
                   </CardContent>
                 </Card>
+
+                <CustomMetricsSection
+                  tabKey="content"
+                  sectionKey={activeChannel}
+                  selectedMonth={selectedMonth}
+                  compareMode={compareMode}
+                  title="Metricas customizadas do canal"
+                  description="Adicione indicadores extras especificos para a sub-aba de conteudo selecionada."
+                />
               </>
             )}
           </TabsContent>

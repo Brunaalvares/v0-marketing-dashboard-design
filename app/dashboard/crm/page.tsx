@@ -9,6 +9,7 @@ import { DateFilter, CompareMode, getComparisonDates } from '@/components/dashbo
 import { KPICard } from '@/components/dashboard/kpi-card'
 import { CRMFormDialog } from '@/components/dashboard/crm-form-dialog'
 import { ComparisonChart } from '@/components/dashboard/comparison-chart'
+import { CustomMetricsSection } from '@/components/dashboard/custom-metrics-section'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -223,7 +224,7 @@ export default function CRMPage() {
           <ComparisonChart title="Status WON vs LOST" data={statusChartData} />
         </div>
 
-        <Card>
+        <Card className="mb-8">
           <CardHeader>
             <CardTitle className="text-base font-medium">Dados do periodo</CardTitle>
           </CardHeader>
@@ -294,6 +295,14 @@ export default function CRMPage() {
             </Table>
           </CardContent>
         </Card>
+
+        <CustomMetricsSection
+          tabKey="crm"
+          selectedMonth={selectedMonth}
+          compareMode={compareMode}
+          title="Metricas customizadas de CRM"
+          description="Adicione indicadores extras para acompanhar nesta aba de CRM."
+        />
       </div>
 
       <CRMFormDialog

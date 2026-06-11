@@ -10,6 +10,7 @@ import { KPICard } from '@/components/dashboard/kpi-card'
 import { MarketingTable } from '@/components/dashboard/marketing-table'
 import { MetricFormDialog } from '@/components/dashboard/metric-form-dialog'
 import { ComparisonChart } from '@/components/dashboard/comparison-chart'
+import { CustomMetricsSection } from '@/components/dashboard/custom-metrics-section'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MARKETING_SOURCES, MarketingMetric } from '@/lib/types'
@@ -262,6 +263,14 @@ export default function DashboardPage() {
                 />
               )}
             </div>
+
+            <CustomMetricsSection
+              tabKey="overview"
+              selectedMonth={selectedMonth}
+              compareMode={compareMode}
+              title="Metricas customizadas da Visao Geral"
+              description="Adicione indicadores extras para acompanhar junto dos dados gerais do dashboard."
+            />
           </TabsContent>
         </Tabs>
       </div>
