@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { startOfMonth } from 'date-fns'
-import { Plus, Mail, Search, Instagram, Linkedin } from 'lucide-react'
+import { Plus, Mail, Search, Megaphone, Linkedin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { DashboardHeader } from '@/components/dashboard/header'
 import { DateFilter, CompareMode, getComparisonDates } from '@/components/dashboard/date-filter'
@@ -96,11 +96,11 @@ export default function ConteudoPage() {
   // Filter metrics by channel
   const emailMetrics = metrics.filter(m => m.channel === 'email_marketing')
   const seoMetrics = metrics.filter(m => m.channel === 'seo')
-  const instagramMetrics = metrics.filter(m => m.channel === 'instagram')
+  const metaMetrics = metrics.filter(m => m.channel === 'instagram')
   const linkedinMetrics = metrics.filter(m => m.channel === 'linkedin')
   const compareEmailMetrics = compareMetrics.filter(m => m.channel === 'email_marketing')
   const compareSeoMetrics = compareMetrics.filter(m => m.channel === 'seo')
-  const compareInstagramMetrics = compareMetrics.filter(m => m.channel === 'instagram')
+  const compareMetaMetrics = compareMetrics.filter(m => m.channel === 'instagram')
   const compareLinkedinMetrics = compareMetrics.filter(m => m.channel === 'linkedin')
 
   // Calculate averages for email marketing
@@ -120,7 +120,7 @@ export default function ConteudoPage() {
   const totalPalavrasIndexadas = sum(seoMetrics.map(m => m.palavras_indexadas))
 
   // Social totals
-  const totalInstagramLeads = sum(instagramMetrics.map(m => m.conversao_lead))
+  const totalMetaLeads = sum(metaMetrics.map(m => m.conversao_lead))
   const totalLinkedinLeads = sum(linkedinMetrics.map(m => m.conversao_lead))
 
   const compareAvgTaxaEntrega = compareEmailMetrics.length > 0
@@ -144,14 +144,14 @@ export default function ConteudoPage() {
     ? sum(compareSeoMetrics.map(m => Number(m.desempenho_site))) / compareSeoMetrics.length
     : 0
 
-  const compareInstagramLeads = sum(compareInstagramMetrics.map(m => m.conversao_lead))
+  const compareMetaLeads = sum(compareMetaMetrics.map(m => m.conversao_lead))
   const compareLinkedinLeads = sum(compareLinkedinMetrics.map(m => m.conversao_lead))
 
   const getCurrentChannelMetrics = () => {
     switch (activeChannel) {
       case 'email_marketing': return emailMetrics
       case 'seo': return seoMetrics
-      case 'instagram': return instagramMetrics
+      case 'instagram': return metaMetrics
       case 'linkedin': return linkedinMetrics
       default: return []
     }
@@ -187,17 +187,17 @@ export default function ConteudoPage() {
         return [
           {
             label: 'Trafego/Sessoes',
-            atual: sum(instagramMetrics.map((metric) => metric.trafego_organico)),
-            comparativo: sum(compareInstagramMetrics.map((metric) => metric.trafego_organico)),
+            atual: sum(metaMetrics.map((metric) => metric.trafego_organico)),
+            comparativo: sum(compareMetaMetrics.map((metric) => metric.trafego_organico)),
           },
-          { label: 'Leads', atual: totalInstagramLeads, comparativo: compareInstagramLeads },
+          { label: 'Leads', atual: totalMetaLeads, comparativo: compareMetaLeads },
           {
             label: 'Conversao %',
-            atual: instagramMetrics.length > 0
-              ? sum(instagramMetrics.map((metric) => Number(metric.taxa_conversao))) / instagramMetrics.length
+            atual: metaMetrics.length > 0
+              ? sum(metaMetrics.map((metric) => Number(metric.taxa_conversao))) / metaMetrics.length
               : 0,
-            comparativo: compareInstagramMetrics.length > 0
-              ? sum(compareInstagramMetrics.map((metric) => Number(metric.taxa_conversao))) / compareInstagramMetrics.length
+            comparativo: compareMetaMetrics.length > 0
+              ? sum(compareMetaMetrics.map((metric) => Number(metric.taxa_conversao))) / compareMetaMetrics.length
               : 0,
           },
         ]
@@ -353,33 +353,33 @@ export default function ConteudoPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
             <KPICard
               title="Trafego/Sessoes"
-              value={instagramMetrics.reduce((acc, m) => acc + m.trafego_organico, 0)}
+              value={metaMetrics.reduce((acc, m) => acc + m.trafego_organico, 0)}
               format="number"
-              icon={<Instagram className="h-4 w-4" />}
+              icon={<Megaphone className="h-4 w-4" />}
             />
             <KPICard
               title="Conversao de Lead"
-              value={totalInstagramLeads}
-              previousValue={compareInstagramLeads}
-              trend={calculateTrend(totalInstagramLeads, compareInstagramLeads)}
+              value={totalMetaLeads}
+              previousValue={compareMetaLeads}
+              trend={calculateTrend(totalMetaLeads, compareMetaLeads)}
               format="number"
             />
             <KPICard
               title="Taxa de Conversao"
-              value={instagramMetrics.length > 0 
-                ? sum(instagramMetrics.map((metric) => Number(metric.taxa_conversao))) / instagramMetrics.length 
+              value={metaMetrics.length > 0 
+                ? sum(metaMetrics.map((metric) => Number(metric.taxa_conversao))) / metaMetrics.length 
                 : 0}
-              previousValue={compareInstagramMetrics.length > 0
-                ? sum(compareInstagramMetrics.map((metric) => Number(metric.taxa_conversao))) / compareInstagramMetrics.length
+              previousValue={compareMetaMetrics.length > 0
+                ? sum(compareMetaMetrics.map((metric) => Number(metric.taxa_conversao))) / compareMetaMetrics.length
                 : 0}
               trend={calculateTrend(
-                instagramMetrics.length > 0 ? sum(instagramMetrics.map((metric) => Number(metric.taxa_conversao))) / instagramMetrics.length : 0,
-                compareInstagramMetrics.length > 0 ? sum(compareInstagramMetrics.map((metric) => Number(metric.taxa_conversao))) / compareInstagramMetrics.length : 0
+                metaMetrics.length > 0 ? sum(metaMetrics.map((metric) => Number(metric.taxa_conversao))) / metaMetrics.length : 0,
+                compareMetaMetrics.length > 0 ? sum(compareMetaMetrics.map((metric) => Number(metric.taxa_conversao))) / compareMetaMetrics.length : 0
               )}
               format="percent"
             />
             <div className="lg:col-span-3">
-              <ComparisonChart title="Comparativo Instagram" data={getComparisonChartData()} />
+              <ComparisonChart title="Comparativo Meta" data={getComparisonChartData()} />
             </div>
           </div>
         )
@@ -448,7 +448,7 @@ export default function ConteudoPage() {
           <TabsList>
             <TabsTrigger value="email_marketing">E-mail Marketing</TabsTrigger>
             <TabsTrigger value="seo">SEO</TabsTrigger>
-            <TabsTrigger value="instagram">Instagram</TabsTrigger>
+            <TabsTrigger value="instagram">Meta</TabsTrigger>
             <TabsTrigger value="linkedin">LinkedIn</TabsTrigger>
           </TabsList>
 

@@ -129,7 +129,7 @@ export const MARKETING_SOURCES = [
 export const CONTENT_CHANNELS = [
   { value: 'email_marketing', label: 'E-mail Marketing' },
   { value: 'seo', label: 'SEO' },
-  { value: 'instagram', label: 'Instagram' },
+  { value: 'instagram', label: 'Meta' },
   { value: 'linkedin', label: 'LinkedIn' },
 ] as const
 

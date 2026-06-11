@@ -115,7 +115,7 @@ begin
       (v_user_id, v_previous_month, 'seo', 0, 0, 0, 0, 0, 13800, 16800, 9200, 1140, 139.00, 88.00, 0),
       (v_user_id, v_previous_year_same_month, 'seo', 0, 0, 0, 0, 0, 9800, 12000, 6900, 860, 128.00, 81.00, 0),
 
-      -- Instagram
+      -- Meta
       (v_user_id, v_current_month, 'instagram', 0, 0, 0, 0, 2.40, 5200, 0, 0, 0, 0, 0, 58),
       (v_user_id, v_previous_month, 'instagram', 0, 0, 0, 0, 2.10, 4700, 0, 0, 0, 0, 0, 49),
       (v_user_id, v_previous_year_same_month, 'instagram', 0, 0, 0, 0, 1.60, 3200, 0, 0, 0, 0, 0, 33),
