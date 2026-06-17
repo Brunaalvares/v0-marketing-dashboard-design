@@ -48,6 +48,11 @@ interface GoogleAnalyticsReportResponse {
   }
 }
 
+interface ServiceAccountCredentials {
+  clientEmail: string | null
+  privateKey: string | null
+}
+
 function base64UrlEncode(value: string) {
   return Buffer.from(value)
     .toString('base64')
@@ -67,8 +72,41 @@ function stripWrappingQuotes(value: string) {
   return value
 }
 
+function parseServiceAccountJson(value: string): ServiceAccountCredentials {
+  try {
+    const serviceAccount = JSON.parse(value)
+    return {
+      clientEmail: typeof serviceAccount.client_email === 'string' ? serviceAccount.client_email : null,
+      privateKey: typeof serviceAccount.private_key === 'string'
+        ? normalizePrivateKey(serviceAccount.private_key)
+        : null,
+    }
+  } catch {
+    throw new Error('GOOGLE_ANALYTICS_SERVICE_ACCOUNT_JSON nao e um JSON valido.')
+  }
+}
+
+function wrapPrivateKeyBody(value: string) {
+  const compactValue = value.replace(/\s/g, '')
+
+  if (!/^[A-Za-z0-9+/=]+$/.test(compactValue) || compactValue.length < 100) {
+    return value
+  }
+
+  return `-----BEGIN PRIVATE KEY-----\n${compactValue.match(/.{1,64}/g)?.join('\n')}\n-----END PRIVATE KEY-----\n`
+}
+
 function normalizePrivateKey(value: string) {
-  let privateKey = stripWrappingQuotes(value.trim()).replace(/\\n/g, '\n')
+  let privateKey = stripWrappingQuotes(value.trim())
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+
+  if (privateKey.startsWith('{')) {
+    const serviceAccountCredentials = parseServiceAccountJson(privateKey)
+    return serviceAccountCredentials.privateKey || privateKey
+  }
 
   if (privateKey.includes('BEGIN PRIVATE KEY')) {
     return privateKey
@@ -83,7 +121,9 @@ function normalizePrivateKey(value: string) {
     // Keep the original value so signing can raise a helpful error below.
   }
 
-  return privateKey
+  return privateKey.includes('BEGIN PRIVATE KEY')
+    ? privateKey
+    : wrapPrivateKeyBody(privateKey)
 }
 
 function getServiceAccountCredentials() {
@@ -93,17 +133,7 @@ function getServiceAccountCredentials() {
     return null
   }
 
-  try {
-    const serviceAccount = JSON.parse(serviceAccountJson)
-    return {
-      clientEmail: typeof serviceAccount.client_email === 'string' ? serviceAccount.client_email : null,
-      privateKey: typeof serviceAccount.private_key === 'string'
-        ? normalizePrivateKey(serviceAccount.private_key)
-        : null,
-    }
-  } catch {
-    throw new Error('GOOGLE_ANALYTICS_SERVICE_ACCOUNT_JSON nao e um JSON valido.')
-  }
+  return parseServiceAccountJson(serviceAccountJson)
 }
 
 function getClientEmail() {
@@ -279,8 +309,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ current, compare })
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Erro inesperado ao buscar dados do Google Analytics.'
+    const safeErrorMessage = errorMessage.includes('DECODER routines')
+      ? 'GOOGLE_ANALYTICS_PRIVATE_KEY esta em formato invalido. Configure a chave completa com BEGIN/END PRIVATE KEY, use GOOGLE_ANALYTICS_PRIVATE_KEY_BASE64 ou GOOGLE_ANALYTICS_SERVICE_ACCOUNT_JSON.'
+      : errorMessage
+
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Erro inesperado ao buscar dados do Google Analytics.' },
+      { error: safeErrorMessage },
       { status: 500 }
     )
   }

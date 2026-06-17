@@ -30,11 +30,14 @@ If your hosting provider changes line breaks in the private key, use one of thes
 GOOGLE_ANALYTICS_PRIVATE_KEY_BASE64=LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCg...
 ```
 
-or paste the complete service account JSON:
+or paste the complete service account JSON in a single environment variable:
 
 ```bash
 GOOGLE_ANALYTICS_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n","client_email":"service-account@project.iam.gserviceaccount.com"}
 ```
+
+If you use `GOOGLE_ANALYTICS_SERVICE_ACCOUNT_JSON`, you do not need to set
+`GOOGLE_ANALYTICS_CLIENT_EMAIL` or `GOOGLE_ANALYTICS_PRIVATE_KEY` separately.
 
 Alternatively, for temporary local testing, you can provide:
 
