@@ -56,8 +56,70 @@ function base64UrlEncode(value: string) {
     .replace(/\//g, '_')
 }
 
+function stripWrappingQuotes(value: string) {
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1)
+  }
+
+  return value
+}
+
+function normalizePrivateKey(value: string) {
+  let privateKey = stripWrappingQuotes(value.trim()).replace(/\\n/g, '\n')
+
+  if (privateKey.includes('BEGIN PRIVATE KEY')) {
+    return privateKey
+  }
+
+  try {
+    const decoded = Buffer.from(privateKey, 'base64').toString('utf8').trim()
+    if (decoded.includes('BEGIN PRIVATE KEY')) {
+      privateKey = decoded
+    }
+  } catch {
+    // Keep the original value so signing can raise a helpful error below.
+  }
+
+  return privateKey
+}
+
+function getServiceAccountCredentials() {
+  const serviceAccountJson = process.env.GOOGLE_ANALYTICS_SERVICE_ACCOUNT_JSON
+
+  if (!serviceAccountJson) {
+    return null
+  }
+
+  try {
+    const serviceAccount = JSON.parse(serviceAccountJson)
+    return {
+      clientEmail: typeof serviceAccount.client_email === 'string' ? serviceAccount.client_email : null,
+      privateKey: typeof serviceAccount.private_key === 'string'
+        ? normalizePrivateKey(serviceAccount.private_key)
+        : null,
+    }
+  } catch {
+    throw new Error('GOOGLE_ANALYTICS_SERVICE_ACCOUNT_JSON nao e um JSON valido.')
+  }
+}
+
+function getClientEmail() {
+  return process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL || getServiceAccountCredentials()?.clientEmail
+}
+
 function getPrivateKey() {
-  return process.env.GOOGLE_ANALYTICS_PRIVATE_KEY?.replace(/\\n/g, '\n')
+  const privateKey =
+    process.env.GOOGLE_ANALYTICS_PRIVATE_KEY ||
+    process.env.GOOGLE_ANALYTICS_PRIVATE_KEY_BASE64
+
+  if (privateKey) {
+    return normalizePrivateKey(privateKey)
+  }
+
+  return getServiceAccountCredentials()?.privateKey
 }
 
 async function getGoogleAccessToken() {
@@ -65,7 +127,7 @@ async function getGoogleAccessToken() {
     return process.env.GOOGLE_ANALYTICS_ACCESS_TOKEN
   }
 
-  const clientEmail = process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL
+  const clientEmail = getClientEmail()
   const privateKey = getPrivateKey()
 
   if (!clientEmail || !privateKey) {
@@ -87,12 +149,20 @@ async function getGoogleAccessToken() {
   )
 
   const unsignedToken = `${header}.${payload}`
-  const signature = createSign('RSA-SHA256')
-    .update(unsignedToken)
-    .sign(privateKey, 'base64')
-    .replace(/=/g, '')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
+  let signature: string
+
+  try {
+    signature = createSign('RSA-SHA256')
+      .update(unsignedToken)
+      .sign(privateKey, 'base64')
+      .replace(/=/g, '')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+  } catch {
+    throw new Error(
+      'GOOGLE_ANALYTICS_PRIVATE_KEY esta em formato invalido. Use a chave completa com BEGIN/END PRIVATE KEY e quebras de linha como \\n, ou configure GOOGLE_ANALYTICS_PRIVATE_KEY_BASE64.'
+    )
+  }
 
   const tokenResponse = await fetch(GOOGLE_TOKEN_URL, {
     method: 'POST',
