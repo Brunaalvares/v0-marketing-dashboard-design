@@ -137,10 +137,15 @@ function getServiceAccountCredentials() {
 }
 
 function getClientEmail() {
-  return process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL || getServiceAccountCredentials()?.clientEmail
+  return getServiceAccountCredentials()?.clientEmail || process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL
 }
 
 function getPrivateKey() {
+  const serviceAccountPrivateKey = getServiceAccountCredentials()?.privateKey
+  if (serviceAccountPrivateKey) {
+    return serviceAccountPrivateKey
+  }
+
   const privateKey =
     process.env.GOOGLE_ANALYTICS_PRIVATE_KEY ||
     process.env.GOOGLE_ANALYTICS_PRIVATE_KEY_BASE64
@@ -149,7 +154,7 @@ function getPrivateKey() {
     return normalizePrivateKey(privateKey)
   }
 
-  return getServiceAccountCredentials()?.privateKey
+  return null
 }
 
 async function getGoogleAccessToken() {
